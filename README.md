@@ -1,11 +1,11 @@
-# 📡 Multi-WAN QoS: PCC Queue Trees + CAKE Smart Queue Management
+# Multi-WAN QoS: PCC Queue Trees + CAKE Smart Queue Management
 ### *My Ninth Project as a Network Engineer*
 
 > Bufferbloat is silent. CAKE is the cure.
 
 ---
 
-## 🗺️ The Topology
+## The Topology
 
 ![Network Topology](https://YOUR-IMAGE-HOST.com/topology.png)
 
@@ -19,7 +19,7 @@
 
 ---
 
-## 🎭 The Lore
+## The Lore
 
 Okay so here's the scenario:
 
@@ -27,7 +27,7 @@ Setting up QoS on a single internet link? Straightforward.
 
 But when you introduce Active-Active Dual-WAN with PCC load balancing? Standard queuing completely falls apart.
 
-Simple Queues can't easily track which ISP a packet is using. If the router blindly shapes traffic without knowing which pipe it's traveling through, it will over-subscribe a slower link or under-utilize a faster link. Bufferbloat spikes across both connections.
+Simple Queues can't easily track which ISP a packet is using. If the router blindly shapes traffic without knowing which link it's traveling through, it will over-subscribe a slower link or under-utilize a faster link. Bufferbloat spikes across both connections.
 
 Here's the problem with PCC alone:
 
@@ -37,39 +37,36 @@ If you run unequal links—say a fast link and a slower link—a blind 50/50 PCC
 
 I needed PCC to be smart. I needed it coupled with advanced queuing.
 
-So I engineered a centralized traffic framework that binds PCC Load Balancing with Nested Global Queue Trees and CAKE AQM:
+So I engineered a centralized traffic framework that binds my existing PCC Load Balancing project with Nested Global Queue Trees and CAKE AQM:
+1. Bandwidth aware PCC allocation, It ensures that once a connection is assigned to a provider interface, all corresponding packets stay stuck to that interface to prevent broken sessions.
+   
+2. Once the Queue Tree catches the congestion at that any of the two upstream ISP links, CAKE steps in. It isolates the different traffics and prioritizes in this order VOICE > VIDEO > BULK/DOWNLOAD, therefore crtitical traffics will be prioritized.
+   
+3. Dynamic Bandwidth allocation provided from the baseline of 15M download/ 15M upload ensures no one user can hogged the bandwidth all for itself.
 
-- **Symmetric PCC Boundary Allocation:** Connections parsed via multi-stream Per-Connection Classifier. For this test, I focused on a single ISP baseline to isolate and measure raw prioritization performance.
-
-- **Double-Pass Mangle Tracking:** Multi-stage Mangle architecture stamps packets with application class based on ports and DSCP bits, then pairs with PCC filters to apply explicit provider packet marks.
-
-- **Centralized Global Parent Management:** Instead of placing queues on individual interfaces, I constructed a centralized parent layout using `parent=global` with hardcoded ceilings (15M download / 10M upload).
-
-- **Dynamic Leaf Allocation via CAKE:** Nested individual provider leaf queues driven by CAKE underneath the global parents. CAKE handles host fairness and application prioritization automatically.
-
-The result? Intelligent path shaping that keeps real-time applications crisp—even when a single provider link is pushed to its absolute limits.
+The result? Intelligent path shaping that keeps critical applications running even when a single provider link is pushed to its absolute limits.
 
 ---
 
 ## 🛠️ Performance Highlights
 
 **Centralized Global Bandwidth Pooling**  
-Engineered a nested queue tree architecture leveraging `parent=global` to enforce structural download (15M) and upload (10M) constraints across the core routing engine.
+Engineered a nested queue tree architecture leveraging `parent=global` to enforce structural download (15M) and upload (15M) constraints across the core routing engine.
 
-**Multi-Stage Packet Marking Pipeline**  
+**Multi-Stage Packet Marking**  
 Developed a granular Mangle framework that pairs PCC connection states with application priority markers, creating a deterministic packet matrix for queue tree parsing.
 
 **Single-Link Bufferbloat Eradication**  
 Validated CAKE AQM capabilities under maximum link saturation, maintaining a rock-solid Bufferbloat Grade A+ rating during multi-host stress tests.
 
 **Dynamic Priority Tin Allocation**  
-Leveraged CAKE's internal multi-tin profiling inside the global parent queue tree to give voice, interactive web, and background data transfers their own optimized transit paths.
+Leveraged CAKE's internal multi-tin profiling inside the global parent queue tree to give voice, video, and background data transfers/bulk their own optimized transit paths.
 
 ![QoS Architecture Demo](https://github.com/user-attachments/assets/0a27f1f6-234f-4fe4-9e7e-617283c09e23)
 
 ---
 
-## 🧪 The Proof: Validation Tests
+## The Proof: Validation Tests (Note these tests are done with the other ISP turned off to showcase the QOS)
 
 ### Test 1: Latency Under Load (CAKE vs No CAKE)
 
